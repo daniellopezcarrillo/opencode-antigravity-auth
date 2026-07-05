@@ -1,6 +1,7 @@
 import { ANSI } from './ansi';
 import { select, type MenuItem } from './select';
 import { confirm } from './confirm';
+import type { DetectedAgyCredentials } from '../storage';
 
 export type AccountStatus = 'active' | 'rate-limited' | 'expired' | 'verification-required' | 'unknown';
 
@@ -51,7 +52,26 @@ function getStatusBadge(status: AccountStatus | undefined): string {
   }
 }
 
-export async function showAuthMenu(accounts: AccountInfo[]): Promise<AuthMenuAction> {
+export function buildAuthMenuCopy(detectedAgyCredentials?: DetectedAgyCredentials): {
+  subtitle: string;
+  help?: string;
+} {
+  if (!detectedAgyCredentials?.present) {
+    return {
+      subtitle: 'Select an action or account',
+    };
+  }
+
+  return {
+    subtitle: 'Detected reusable agy credentials from your OS keyring. Reuse is machine-backed and may still need onboarding steps.',
+    help: 'Check quotas or verify access, then configure models in opencode.json if needed.',
+  };
+}
+
+export async function showAuthMenu(
+  accounts: AccountInfo[],
+  detectedAgyCredentials?: DetectedAgyCredentials,
+): Promise<AuthMenuAction> {
   const items: MenuItem<AuthMenuAction>[] = [
     { label: 'Actions', value: { type: 'cancel' }, kind: 'heading' },
     { label: 'Add account', value: { type: 'add' }, color: 'cyan' },
@@ -85,10 +105,13 @@ export async function showAuthMenu(accounts: AccountInfo[]): Promise<AuthMenuAct
     { label: 'Delete all accounts', value: { type: 'delete-all' }, color: 'red' as const },
   ];
 
+  const copy = buildAuthMenuCopy(detectedAgyCredentials);
+
   while (true) {
     const result = await select(items, { 
       message: 'Google accounts (Antigravity)',
-      subtitle: 'Select an action or account',
+      subtitle: copy.subtitle,
+      help: copy.help,
       clearScreen: true,
     });
 

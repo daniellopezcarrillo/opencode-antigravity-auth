@@ -71,6 +71,11 @@ Install the opencode-antigravity-auth plugin and add the Antigravity model defin
    opencode auth login
    ```
 
+   If you already use the native `agy` CLI on this machine, the plugin now tells you when reusable keyring-backed credentials were detected. That message is informational only: OpenCode reuses the existing OS-managed access and does **not** print or export raw secrets. From there, the recommended next steps are:
+   - **Check quotas** to confirm account/quota status
+   - **Verify one/all accounts** if Google needs an extra approval step
+   - **Configure models in opencode.json** so the detected login is actually usable in OpenCode
+
 3. **Add models** — choose one:
    - Run `opencode auth login` → Google → OAuth with Google (Antigravity) → select **"Configure models in opencode.json"** (auto-configures all models)
    - Or manually copy the [full configuration](#models) below
@@ -255,7 +260,10 @@ opencode auth login  # Run again to add more accounts
 **Account management options (via `opencode auth login`):**
 - **Configure models** — Auto-configure all plugin models in opencode.json
 - **Check quotas** — View remaining API quota for each account
+- **Verify one/all accounts** — Confirm the detected account is ready if Google requires verification
 - **Manage accounts** — Enable/disable specific accounts for rotation
+
+When `agy` credentials are detected, the onboarding menu keeps these existing actions intact and loops back after non-destructive checks so you can inspect status first, then continue setup without restarting login.
 
 For details on load balancing, dual quota pools, and account storage, see [docs/MULTI-ACCOUNT.md](docs/MULTI-ACCOUNT.md).
 

@@ -10,6 +10,8 @@ Create `~/.config/opencode/antigravity.json` (or `.opencode/antigravity.json` in
 
 Most settings have sensible defaults — only configure what you need.
 
+If you already sign in through the native `agy` CLI, this plugin can reuse the same OS keyring credentials during `opencode auth login`. That keyring-backed reuse is the safer default because the refresh token stays in the operating system credential store instead of being manually copied around.
+
 ---
 
 ## Quick Start
@@ -110,6 +112,13 @@ Logs are written to `~/.config/opencode/antigravity-logs/` (or `log_dir` if set)
 ## Recommended Configs
 
 Copy-paste ready configs with recommended settings pre-applied.
+
+### agy users: login reuse vs routing behavior
+
+- **Login reuse** comes from the detected `gemini:antigravity` keyring entry during `opencode auth login`.
+- **`cli_first` is optional** and only affects Gemini request routing/quota preference after login.
+- You do **not** need `cli_first: true` to reuse existing `agy` authentication.
+- After detection, it is still a good idea to run quota/account checks and configure models in `opencode.json`.
 
 ### 1 Account
 

@@ -29,6 +29,15 @@ interface KeyringData {
   auth_method?: string;
 }
 
+export interface DetectedAgyCredentials {
+  present: boolean;
+  source: "os-keyring";
+  accountLabel: string;
+  requiresOnboarding: boolean;
+}
+
+const AGY_KEYRING_ACCOUNT_LABEL = "antigravity-keyring";
+
 function readKeyring(): KeyringData | null {
   if (process.env.NODE_ENV === "test") {
     return null;
@@ -94,9 +103,30 @@ Add-Type -TypeDefinition $code -ErrorAction SilentlyContinue
   return null;
 }
 
+export function summarizeDetectedAgyCredentials(
+  keyringData: KeyringData | null,
+): DetectedAgyCredentials | undefined {
+  const refreshToken = keyringData?.token?.refresh_token?.trim();
+  if (!refreshToken) {
+    return undefined;
+  }
+
+  return {
+    present: true,
+    source: "os-keyring",
+    accountLabel: AGY_KEYRING_ACCOUNT_LABEL,
+    requiresOnboarding: true,
+  };
+}
+
+export function detectAgyCredentials(): DetectedAgyCredentials | undefined {
+  return summarizeDetectedAgyCredentials(readKeyring());
+}
+
 function injectKeyringAccountsIfNeeded(storage: AccountStorageV4 | null): AccountStorageV4 | null {
   const keyringData = readKeyring();
-  if (keyringData?.token?.refresh_token) {
+  const detectedAgyCredentials = summarizeDetectedAgyCredentials(keyringData);
+  if (detectedAgyCredentials) {
     let targetStorage = storage;
     if (!targetStorage) {
       targetStorage = {
@@ -109,12 +139,15 @@ function injectKeyringAccountsIfNeeded(storage: AccountStorageV4 | null): Accoun
     if (!Array.isArray(targetStorage.accounts)) {
       targetStorage.accounts = [];
     }
-    const token = keyringData.token;
-    const exists = targetStorage.accounts.some((acc) => acc.refreshToken === token.refresh_token);
+    const refreshToken = keyringData?.token?.refresh_token?.trim();
+    if (!refreshToken) {
+      return targetStorage;
+    }
+    const exists = targetStorage.accounts.some((acc) => acc.refreshToken === refreshToken);
     if (!exists) {
       targetStorage.accounts.unshift({
-        email: "antigravity-keyring",
-        refreshToken: token.refresh_token!,
+        email: detectedAgyCredentials.accountLabel,
+        refreshToken,
         projectId: "gen-lang-client-0344600199",
         managedProjectId: "",
         addedAt: Date.now(),

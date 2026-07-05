@@ -8,6 +8,7 @@ import {
   type AccountStatus,
 } from "./ui/auth-menu";
 import { updateOpencodeConfig } from "./config/updater";
+import type { DetectedAgyCredentials } from "./storage";
 
 export async function promptProjectId(): Promise<string> {
   const rl = createInterface({ input, output });
@@ -52,18 +53,61 @@ export interface LoginMenuResult {
   deleteAll?: boolean;
 }
 
-async function promptLoginModeFallback(existingAccounts: ExistingAccountInfo[]): Promise<LoginMenuResult> {
+export function buildDetectedAgyLoginMessage(
+  detectedAgyCredentials?: DetectedAgyCredentials,
+): string[] {
+  if (!detectedAgyCredentials?.present) {
+    return [];
+  }
+
+  return [
+    "Detected reusable agy credentials in your OS keyring.",
+    "OpenCode can reuse that existing machine-backed access without exposing raw secrets.",
+    "Recommended next steps: check quotas or verify account access, then configure models in opencode.json if needed.",
+  ];
+}
+
+export function buildLoginModeFallbackPrompt(
+  existingAccounts: ExistingAccountInfo[],
+  detectedAgyCredentials?: DetectedAgyCredentials,
+): {
+  introLines: string[];
+  question: string;
+} {
+  const introLines = [`${existingAccounts.length} account(s) saved:`];
+
+  for (const acc of existingAccounts) {
+    const label = acc.email || `Account ${acc.index + 1}`;
+    introLines.push(`  ${acc.index + 1}. ${label}`);
+  }
+
+  const agyLines = buildDetectedAgyLoginMessage(detectedAgyCredentials);
+  if (agyLines.length > 0) {
+    introLines.push("", ...agyLines);
+  }
+
+  return {
+    introLines,
+    question: "(a)dd new, (f)resh start, (c)heck quotas, (v)erify account, (va) verify all? [a/f/c/v/va]: ",
+  };
+}
+
+async function promptLoginModeFallback(
+  existingAccounts: ExistingAccountInfo[],
+  detectedAgyCredentials?: DetectedAgyCredentials,
+): Promise<LoginMenuResult> {
   const rl = createInterface({ input, output });
   try {
-    console.log(`\n${existingAccounts.length} account(s) saved:`);
-    for (const acc of existingAccounts) {
-      const label = acc.email || `Account ${acc.index + 1}`;
-      console.log(`  ${acc.index + 1}. ${label}`);
+    const prompt = buildLoginModeFallbackPrompt(existingAccounts, detectedAgyCredentials);
+
+    console.log("");
+    for (const line of prompt.introLines) {
+      console.log(line);
     }
     console.log("");
 
     while (true) {
-      const answer = await rl.question("(a)dd new, (f)resh start, (c)heck quotas, (v)erify account, (va) verify all? [a/f/c/v/va]: ");
+      const answer = await rl.question(prompt.question);
       const normalized = answer.trim().toLowerCase();
 
       if (normalized === "a" || normalized === "add") {
@@ -89,9 +133,12 @@ async function promptLoginModeFallback(existingAccounts: ExistingAccountInfo[]):
   }
 }
 
-export async function promptLoginMode(existingAccounts: ExistingAccountInfo[]): Promise<LoginMenuResult> {
+export async function promptLoginMode(
+  existingAccounts: ExistingAccountInfo[],
+  detectedAgyCredentials?: DetectedAgyCredentials,
+): Promise<LoginMenuResult> {
   if (!isTTY()) {
-    return promptLoginModeFallback(existingAccounts);
+    return promptLoginModeFallback(existingAccounts, detectedAgyCredentials);
   }
 
   const accounts: AccountInfo[] = existingAccounts.map(acc => ({
@@ -107,7 +154,7 @@ export async function promptLoginMode(existingAccounts: ExistingAccountInfo[]): 
   console.log("");
 
   while (true) {
-    const action = await showAuthMenu(accounts);
+    const action = await showAuthMenu(accounts, detectedAgyCredentials);
 
     switch (action.type) {
       case "add":

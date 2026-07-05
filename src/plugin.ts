@@ -39,7 +39,13 @@ import {
 import { EmptyResponseError } from "./plugin/errors";
 import { AntigravityTokenRefreshError, refreshAccessToken } from "./plugin/token";
 import { startOAuthListener, type OAuthListener } from "./plugin/server";
-import { clearAccounts, loadAccounts, saveAccounts, saveAccountsReplace } from "./plugin/storage";
+import {
+  clearAccounts,
+  detectAgyCredentials,
+  loadAccounts,
+  saveAccounts,
+  saveAccountsReplace,
+} from "./plugin/storage";
 import { AccountManager, type ModelFamily, parseRateLimitReason, calculateBackoffMs, computeSoftQuotaCacheTtlMs } from "./plugin/accounts";
 import { createAutoUpdateCheckerHook } from "./hooks/auto-update-checker";
 import { loadConfig, initRuntimeConfig, type AntigravityConfig } from "./plugin/config";
@@ -2520,6 +2526,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
             // Check for existing accounts and prompt user for login mode
             let startFresh = true;
             let refreshAccountIndex: number | undefined;
+            const detectedAgyCredentials = detectAgyCredentials();
             const existingStorage = await loadAccounts();
             if (existingStorage && existingStorage.accounts.length > 0) {
               let menuResult;
@@ -2561,7 +2568,7 @@ export const createAntigravityPlugin = (providerId: string) => async (
                   };
                 });
                 
-                menuResult = await promptLoginMode(existingAccounts);
+                menuResult = await promptLoginMode(existingAccounts, detectedAgyCredentials);
 
                 if (menuResult.mode === "check") {
                   console.log("\n📊 Checking quotas for all accounts...\n");

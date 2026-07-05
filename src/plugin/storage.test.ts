@@ -3,6 +3,7 @@ import {
   deduplicateAccountsByEmail,
   migrateV2ToV3,
   loadAccounts,
+  summarizeDetectedAgyCredentials,
   type AccountMetadata,
   type AccountStorage,
 } from "./storage";
@@ -428,6 +429,44 @@ describe("Storage Migration", () => {
         (call) => (call[0] as string).includes(".gitignore")
       );
       expect(gitignoreCall).toBeDefined();
+    });
+  });
+
+  describe("summarizeDetectedAgyCredentials", () => {
+    it("returns undefined when no reusable keyring refresh token exists", () => {
+      expect(summarizeDetectedAgyCredentials(null)).toBeUndefined();
+      expect(
+        summarizeDetectedAgyCredentials({
+          token: {
+            access_token: "access-only",
+          },
+        }),
+      ).toBeUndefined();
+      expect(
+        summarizeDetectedAgyCredentials({
+          token: {
+            refresh_token: "   ",
+          },
+        }),
+      ).toBeUndefined();
+    });
+
+    it("returns a safe onboarding summary when a refresh token exists", () => {
+      const result = summarizeDetectedAgyCredentials({
+        token: {
+          refresh_token: "super-secret-refresh-token",
+          access_token: "access-token",
+        },
+      });
+
+      expect(result).toEqual({
+        present: true,
+        source: "os-keyring",
+        accountLabel: "antigravity-keyring",
+        requiresOnboarding: true,
+      });
+      expect(result).not.toHaveProperty("refreshToken");
+      expect(Object.values(result ?? {})).not.toContain("super-secret-refresh-token");
     });
   });
 
